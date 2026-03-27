@@ -24,15 +24,14 @@ export function MatchSetup() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // 試合場の初期読み込み
     const fetchCourts = async () => {
       try {
         const data = await getCourts();
         setCourts(data);
         if (data.length > 0) setSelectedCourtId(data[0].id);
-      } catch {
-        // SupabaseのAPIキーが未設定の場合など
+      } catch (err) {
         addToast('試合場の読み込みに失敗しました。Supabaseの設定を確認してください。', 'error');
+        console.error('Fetch courts error:', err);
       }
     };
     fetchCourts();
@@ -47,8 +46,9 @@ export function MatchSetup() {
       setNewCourtName('');
       setIsAddingCourt(false);
       addToast('試合場を追加しました', 'success');
-    } catch {
+    } catch (err) {
       addToast('試合場の作成に失敗しました', 'error');
+      console.error('Create court error:', err);
     }
   };
 
@@ -69,12 +69,11 @@ export function MatchSetup() {
         winner: null,
       });
 
-      // Navigate with match ID and team size
       navigate(`/match/${match.id}?size=${match.team_size}`);
-    } catch {
+    } catch (err) {
       addToast('試合の作成に失敗しました。（DBエラー）', 'error');
+      console.error('Match creation error:', err);
       
-      // フォールバック（DB繋がらない時でも画面が見えるようにUUIDを仮で発行）
       const fallbackId = Math.random().toString(36).substring(2, 10);
       navigate(`/match/${fallbackId}?size=${matchType === 'team' ? teamSize : 1}&fallback=true`);
     } finally {
@@ -87,7 +86,6 @@ export function MatchSetup() {
       <h2 className="text-2xl text-center font-bold">試合設定</h2>
 
       <Card className="flex flex-col gap-6">
-        {/* Court Selection */}
         <div className="bg-black/20 p-4 rounded border border-white/5">
           <label className="text-sm text-muted mb-2 block">試合場（Court）選択</label>
           {!isAddingCourt ? (
