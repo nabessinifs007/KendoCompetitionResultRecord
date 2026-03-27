@@ -50,18 +50,24 @@ export function MatchRecord() {
   }, [id, fallbackMode, addToast]);
 
   const handleAddScore = (team: 'red' | 'white', score: Score) => {
-    const setScores = team === 'red' ? setRedScores : setWhiteScores;
-    const currentScores = team === 'red' ? redScores : whiteScores;
-
-    // 不戦勝(F)の場合：自動的に2本（不・不）入れる
-    if (score === 'F') {
-      setScores(['F', 'F']);
-      addToast('不戦勝（2本）を設定しました', 'info');
+    // 仮にスコアを追加した後の本数を計算してみる
+    const currentPoints = calculateBoutPoints(redScores, whiteScores);
+    if (score !== 'F' && (currentPoints.red >= 2 || currentPoints.white >= 2)) {
+      addToast('すでに勝負が決まっています', 'info');
       return;
     }
 
-    if (currentScores.length < 2) {
-      setScores(prev => [...prev, score]);
+    if (team === 'red') {
+      setRedScores(prev => [...prev, score]);
+    } else {
+      setWhiteScores(prev => [...prev, score]);
+    }
+
+    // 不戦勝(F)の場合：自動的に2本（不・不）にする処理
+    if (score === 'F') {
+      if (team === 'red') setRedScores(['F', 'F']);
+      else setWhiteScores(['F', 'F']);
+      addToast('不戦勝（2本）を設定しました', 'info');
     }
   };
 
