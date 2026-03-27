@@ -49,6 +49,18 @@ export function MatchRecord() {
     fetchMatchInfo();
   }, [id, fallbackMode, addToast]);
 
+  // 現在のポジションに応じた選手名を自動セット
+  useEffect(() => {
+    if (matchData) {
+      if (matchData.player_red_names && matchData.player_red_names[currentBoutIndex]) {
+        setPlayerRedName(matchData.player_red_names[currentBoutIndex]);
+      }
+      if (matchData.player_white_names && matchData.player_white_names[currentBoutIndex]) {
+        setPlayerWhiteName(matchData.player_white_names[currentBoutIndex]);
+      }
+    }
+  }, [matchData, currentBoutIndex]);
+
   const handleAddScore = (team: 'red' | 'white', score: Score) => {
     // 仮にスコアを追加した後の本数を計算してみる
     const currentPoints = calculateBoutPoints(redScores, whiteScores);

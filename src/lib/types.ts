@@ -21,6 +21,8 @@ export interface Match {
   team_size: number;
   team_red_name: string;
   team_white_name: string;
+  player_red_names?: string[];
+  player_white_names?: string[];
   status: 'pending' | 'in_progress' | 'completed';
   winner: 'team_red' | 'team_white' | 'draw' | null;
   created_at: string;

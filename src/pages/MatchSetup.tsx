@@ -17,6 +17,11 @@ export function MatchSetup() {
   const [teamRed, setTeamRed] = useState('');
   const [teamWhite, setTeamWhite] = useState('');
   
+  // 選手名管理用のState
+  const [playerRedNames, setPlayerRedNames] = useState<string[]>(Array(5).fill(''));
+  const [playerWhiteNames, setPlayerWhiteNames] = useState<string[]>(Array(5).fill(''));
+  const [showPlayerInputs, setShowPlayerInputs] = useState(false);
+
   const [courts, setCourts] = useState<Court[]>([]);
   const [selectedCourtId, setSelectedCourtId] = useState<string>('');
   const [newCourtName, setNewCourtName] = useState('');
@@ -37,6 +42,25 @@ export function MatchSetup() {
     fetchCourts();
   }, [addToast]);
 
+  // 人数変更に合わせて配列サイズを調整
+  useEffect(() => {
+    const size = matchType === 'team' ? teamSize : 1;
+    setPlayerRedNames(prev => {
+      const next = [...prev];
+      if (next.length < size) {
+        return [...next, ...Array(size - next.length).fill('')];
+      }
+      return next.slice(0, size);
+    });
+    setPlayerWhiteNames(prev => {
+      const next = [...prev];
+      if (next.length < size) {
+        return [...next, ...Array(size - next.length).fill('')];
+      }
+      return next.slice(0, size);
+    });
+  }, [teamSize, matchType]);
+
   const handleAddCourt = async () => {
     if (!newCourtName.trim()) return;
     try {
@@ -49,6 +73,18 @@ export function MatchSetup() {
     } catch (err) {
       addToast('試合場の作成に失敗しました', 'error');
       console.error('Create court error:', err);
+    }
+  };
+
+  const handlePlayerNameChange = (team: 'red' | 'white', index: number, value: string) => {
+    if (team === 'red') {
+      const next = [...playerRedNames];
+      next[index] = value;
+      setPlayerRedNames(next);
+    } else {
+      const next = [...playerWhiteNames];
+      next[index] = value;
+      setPlayerWhiteNames(next);
     }
   };
 
@@ -65,6 +101,8 @@ export function MatchSetup() {
         team_size: matchType === 'team' ? teamSize : 1,
         team_red_name: teamRed,
         team_white_name: teamWhite,
+        player_red_names: playerRedNames,
+        player_white_names: playerWhiteNames,
         status: 'in_progress',
         winner: null,
       });
@@ -81,11 +119,14 @@ export function MatchSetup() {
     }
   };
 
+  const positions = getPositionNames(matchType === 'team' ? teamSize : 1);
+
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-lg mx-auto pb-10">
       <h2 className="text-2xl text-center font-bold">試合設定</h2>
 
       <Card className="flex flex-col gap-6">
+        {/* 試合場選択 */}
         <div className="bg-black/20 p-4 rounded border border-white/5">
           <label className="text-sm text-muted mb-2 block">試合場（Court）選択</label>
           {!isAddingCourt ? (
@@ -114,6 +155,7 @@ export function MatchSetup() {
           )}
         </div>
 
+        {/* 形式選択 */}
         <div>
           <label className="text-sm text-muted mb-2 block">試合形式</label>
           <div className="flex gap-2">
@@ -134,6 +176,7 @@ export function MatchSetup() {
           </div>
         </div>
 
+        {/* 人数設定 */}
         {matchType === 'team' && (
           <div className="animate-fade-in">
             <label className="text-sm text-muted mb-3 block">団体戦の人数設定</label>
@@ -150,33 +193,69 @@ export function MatchSetup() {
                 </Button>
               ))}
             </div>
-            
-            <div className="bg-black/20 p-3 rounded text-sm text-muted">
-              <strong className="text-white">【ポジション構成プレビュー】</strong><br />
-              <div className="mt-1 flex flex-wrap gap-1 leading-relaxed">
-                {getPositionNames(teamSize).map((n, i) => (
-                  <span key={i} className="bg-white/10 px-2 py-0.5 rounded-full text-xs">
-                    {n}
-                  </span>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
+        {/* チーム名・選手名 */}
         <div className="flex flex-col gap-4 mt-2">
-          <Input 
-            label="赤 (チーム名 または 選手名)" 
-            placeholder="例: 赤チーム" 
-            value={teamRed}
-            onChange={e => setTeamRed(e.target.value)}
-          />
-          <Input 
-            label="白 (チーム名 または 選手名)" 
-            placeholder="例: 白チーム" 
-            value={teamWhite}
-            onChange={e => setTeamWhite(e.target.value)}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input 
+              label="赤 チーム名" 
+              placeholder="例: 赤チーム" 
+              value={teamRed}
+              onChange={e => setTeamRed(e.target.value)}
+            />
+            <Input 
+              label="白 チーム名" 
+              placeholder="例: 白チーム" 
+              value={teamWhite}
+              onChange={e => setTeamWhite(e.target.value)}
+            />
+          </div>
+
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-muted"
+            onClick={() => setShowPlayerInputs(!showPlayerInputs)}
+          >
+            {showPlayerInputs ? '▲ 選手名入力を閉じる' : '▼ 選手名を入力する (任意)'}
+          </Button>
+
+          {showPlayerInputs && (
+            <div className="flex flex-col gap-4 p-4 bg-black/20 rounded-lg border border-white/5 animate-fade-in">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] uppercase tracking-widest text-red-400 font-bold mb-1">Red Players</span>
+                  {positions.map((pos, idx) => (
+                    <div key={`red-${idx}`} className="flex items-center gap-2">
+                      <span className="text-[10px] w-8 opacity-50">{pos}</span>
+                      <input 
+                        className="bg-black/30 text-xs p-1.5 rounded border border-white/5 focus:border-red-500 outline-none w-full"
+                        value={playerRedNames[idx] || ''}
+                        onChange={e => handlePlayerNameChange('red', idx, e.target.value)}
+                        placeholder={`${pos}名`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">White Players</span>
+                  {positions.map((pos, idx) => (
+                    <div key={`white-${idx}`} className="flex items-center gap-2">
+                      <span className="text-[10px] w-8 opacity-50">{pos}</span>
+                      <input 
+                        className="bg-black/30 text-xs p-1.5 rounded border border-white/5 focus:border-gray-400 outline-none w-full"
+                        value={playerWhiteNames[idx] || ''}
+                        onChange={e => handlePlayerNameChange('white', idx, e.target.value)}
+                        placeholder={`${pos}名`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <Button size="lg" className="mt-4" onClick={handleStartMatch} disabled={isLoading}>
