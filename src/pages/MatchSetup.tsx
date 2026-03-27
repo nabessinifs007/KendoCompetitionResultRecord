@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -30,7 +30,7 @@ export function MatchSetup() {
         const data = await getCourts();
         setCourts(data);
         if (data.length > 0) setSelectedCourtId(data[0].id);
-      } catch (err: any) {
+      } catch {
         // SupabaseのAPIキーが未設定の場合など
         addToast('試合場の読み込みに失敗しました。Supabaseの設定を確認してください。', 'error');
       }
@@ -47,7 +47,7 @@ export function MatchSetup() {
       setNewCourtName('');
       setIsAddingCourt(false);
       addToast('試合場を追加しました', 'success');
-    } catch (err: any) {
+    } catch {
       addToast('試合場の作成に失敗しました', 'error');
     }
   };
@@ -71,9 +71,8 @@ export function MatchSetup() {
 
       // Navigate with match ID and team size
       navigate(`/match/${match.id}?size=${match.team_size}`);
-    } catch (err: any) {
+    } catch {
       addToast('試合の作成に失敗しました。（DBエラー）', 'error');
-      console.error(err);
       
       // フォールバック（DB繋がらない時でも画面が見えるようにUUIDを仮で発行）
       const fallbackId = Math.random().toString(36).substring(2, 10);

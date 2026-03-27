@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { ScoreInput } from '../components/ScoreInput';
 import { Button } from '../components/ui/Button';
-import { Score } from '../lib/types';
+import type { Score, Match } from '../lib/types';
 import { getPositionNames, determineBoutWinner } from '../lib/kendoLogic';
 import { useToast } from '../components/ui/ToastContext';
 import { getMatch, createBout, updateMatchStatus } from '../lib/api';
@@ -19,7 +19,7 @@ export function MatchRecord() {
   const teamSize = sizeParam ? parseInt(sizeParam, 10) : 5;
   const positions = getPositionNames(teamSize);
   
-  const [matchData, setMatchData] = useState<any>(null);
+  const [matchData, setMatchData] = useState<Match | null>(null);
   const [currentBoutIndex, setCurrentBoutIndex] = useState(0);
   
   const teamRedName = matchData?.team_red_name || '赤チーム';
@@ -41,7 +41,7 @@ export function MatchRecord() {
       try {
         const data = await getMatch(id);
         setMatchData(data);
-      } catch (err: any) {
+      } catch {
         addToast('試合情報の取得に失敗しました', 'error');
       }
     };
@@ -105,7 +105,7 @@ export function MatchRecord() {
         addToast(`試合終了！勝者: ${overallWinner === 'draw' ? '引き分け' : (overallWinner === 'team_red' ? '赤' : '白')}`, 'success');
         navigate('/');
       }
-    } catch (err: any) {
+    } catch {
       addToast('スコア保存に失敗しました', 'error');
     } finally {
       setIsSaving(false);

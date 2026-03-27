@@ -1,6 +1,5 @@
 import React from 'react';
-import { Score } from '../../lib/types';
-import { Button } from './Button';
+import type { Score } from '../lib/types';
 
 interface ScoreInputProps {
   label: string;
