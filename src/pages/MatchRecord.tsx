@@ -111,7 +111,7 @@ export function MatchRecord() {
         // 全ポジション終了
         if (totals.winner === 'draw' && !isRepresentative) {
           // 代表者戦へ
-          addToast('引き分けのため代表者戦を行います', 'important');
+          addToast('引き分けのため代表者戦を行います', 'info');
           setCurrentBoutIndex(prev => prev + 1);
           setRedScores([]);
           setWhiteScores([]);
