@@ -1,4 +1,5 @@
-import React, { InputHTMLAttributes } from 'react';
+import { useId } from 'react';
+import type { InputHTMLAttributes } from 'react';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -6,7 +7,8 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Input({ label, error, className = '', id, ...props }: InputProps) {
-  const fallbackId = id || `input-${Math.random().toString(36).substring(2, 9)}`;
+  const generatedId = useId();
+  const fallbackId = id || generatedId;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>

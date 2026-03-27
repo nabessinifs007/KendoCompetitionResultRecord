@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Court, Competition, Match, Bout, Score } from './types';
+import type { Court, Competition, Match, Bout } from './types';
 
 // Courts API
 export async function getCourts(): Promise<Court[]> {
