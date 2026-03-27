@@ -1,4 +1,4 @@
-export type Score = 'M' | 'K' | 'D' | 'T' | '▲'; // メン、コテ、ドウ、ツキ、反則
+export type Score = 'M' | 'K' | 'D' | 'T' | '▲' | 'F'; // メン、コテ、ドウ、ツキ、反則、不戦勝
 
 export interface Court {
   id: string;

@@ -17,6 +17,7 @@ export function ScoreInput({ label, team, scores, onScoreAdd, onScoreRemove }: S
       case 'D': return { color: 'var(--score-do)', borderColor: 'var(--score-do)' };
       case 'T': return { color: 'var(--score-tsuki)', borderColor: 'var(--score-tsuki)' };
       case '▲': return { color: 'var(--score-hansoku)', borderColor: 'var(--score-hansoku)' };
+      case 'F': return { color: '#fbbf24', borderColor: '#fbbf24' }; // 不戦勝はオレンジ系
       default: return {};
     }
   };
@@ -27,6 +28,7 @@ export function ScoreInput({ label, team, scores, onScoreAdd, onScoreRemove }: S
     { type: 'D', label: 'ド' },
     { type: 'T', label: 'ツ' },
     { type: '▲', label: '反' },
+    { type: 'F', label: '不' },
   ];
 
   const bannerColor = team === 'red' ? 'var(--team-a-red)' : 'var(--team-b-white)';

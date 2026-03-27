@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { ScoreInput } from '../components/ScoreInput';
 import { Button } from '../components/ui/Button';
 import type { Score, Match } from '../lib/types';
-import { getPositionNames, determineBoutWinner } from '../lib/kendoLogic';
+import { getPositionNames, determineBoutWinner, calculateBoutPoints, calculateMatchTotals } from '../lib/kendoLogic';
 import { useToast } from '../components/ui/ToastContext';
 import { getMatch, createBout, updateMatchStatus } from '../lib/api';
 
@@ -32,8 +32,8 @@ export function MatchRecord() {
   const [whiteScores, setWhiteScores] = useState<Score[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // State to track overall wins/draws/losses
-  const [boutResults, setBoutResults] = useState<{winner: 'red' | 'white' | 'draw'}[]>([]);
+  // Track ALL finished bouts to calculate totals
+  const [finishedBouts, setFinishedBouts] = useState<{redScores: Score[], whiteScores: Score[]}[]>([]);
 
   useEffect(() => {
     if (fallbackMode || !id) return;
@@ -41,18 +41,27 @@ export function MatchRecord() {
       try {
         const data = await getMatch(id);
         setMatchData(data);
-      } catch {
+      } catch (err) {
         addToast('試合情報の取得に失敗しました', 'error');
+        console.error(err);
       }
     };
     fetchMatchInfo();
   }, [id, fallbackMode, addToast]);
 
   const handleAddScore = (team: 'red' | 'white', score: Score) => {
-    if (team === 'red') {
-      if (redScores.length < 2) setRedScores(prev => [...prev, score]);
-    } else {
-      if (whiteScores.length < 2) setWhiteScores(prev => [...prev, score]);
+    const setScores = team === 'red' ? setRedScores : setWhiteScores;
+    const currentScores = team === 'red' ? redScores : whiteScores;
+
+    // 不戦勝(F)の場合：自動的に2本（不・不）入れる
+    if (score === 'F') {
+      setScores(['F', 'F']);
+      addToast('不戦勝（2本）を設定しました', 'info');
+      return;
+    }
+
+    if (currentScores.length < 2) {
+      setScores(prev => [...prev, score]);
     }
   };
 
@@ -66,6 +75,7 @@ export function MatchRecord() {
 
   const handleNextBout = async () => {
     const winner = determineBoutWinner(redScores, whiteScores);
+    const isRepresentative = currentBoutIndex >= positions.length;
     
     setIsSaving(true);
     try {
@@ -78,14 +88,19 @@ export function MatchRecord() {
           score_red: redScores,
           score_white: whiteScores,
           winner,
-          is_representative: currentBoutIndex >= positions.length,
+          is_representative: isRepresentative,
         });
       }
       
-      setBoutResults(prev => [...prev, { winner }]);
+      const newFinishedBouts = [...finishedBouts, { redScores, whiteScores }];
+      setFinishedBouts(newFinishedBouts);
 
-      if (currentBoutIndex + 1 < positions.length) {
-        // 次の対戦へ進む
+      // 次の対戦の判定
+      const totals = calculateMatchTotals(newFinishedBouts);
+      const isTeamMatchFinished = currentBoutIndex + 1 >= positions.length;
+
+      if (!isTeamMatchFinished) {
+        // 次のポジションへ
         setCurrentBoutIndex(prev => prev + 1);
         setRedScores([]);
         setWhiteScores([]);
@@ -93,30 +108,39 @@ export function MatchRecord() {
         setPlayerWhiteName('');
         addToast(`${positions[currentBoutIndex + 1]}戦へ進みます`, 'info');
       } else {
-        // すべての対戦終了、全体勝敗を決めてMatch更新
-        const rWins = boutResults.filter(r => r.winner === 'red').length + (winner === 'red' ? 1 : 0);
-        const wWins = boutResults.filter(r => r.winner === 'white').length + (winner === 'white' ? 1 : 0);
-        const overallWinner = rWins > wWins ? 'team_red' : wWins > rWins ? 'team_white' : 'draw';
-        
-        if (!fallbackMode && id) {
-          await updateMatchStatus(id, 'completed', overallWinner);
+        // 全ポジション終了
+        if (totals.winner === 'draw' && !isRepresentative) {
+          // 代表者戦へ
+          addToast('引き分けのため代表者戦を行います', 'important');
+          setCurrentBoutIndex(prev => prev + 1);
+          setRedScores([]);
+          setWhiteScores([]);
+          setPlayerRedName('');
+          setPlayerWhiteName('');
+        } else {
+          // 完全終了
+          if (!fallbackMode && id) {
+            await updateMatchStatus(id, 'completed', totals.winner);
+          }
+          const winLabel = totals.winner === 'draw' ? '引き分け' : (totals.winner === 'team_red' ? '赤' : '白');
+          addToast(`試合終了！勝者: ${winLabel}`, 'success');
+          navigate('/');
         }
-        
-        addToast(`試合終了！勝者: ${overallWinner === 'draw' ? '引き分け' : (overallWinner === 'team_red' ? '赤' : '白')}`, 'success');
-        navigate('/');
       }
-    } catch {
+    } catch (err) {
       addToast('スコア保存に失敗しました', 'error');
+      console.error(err);
     } finally {
       setIsSaving(false);
     }
   };
 
   const currentPosition = positions[currentBoutIndex] || '代表者戦';
-  const isLastBout = currentBoutIndex >= positions.length - 1;
+  const isLastNormalBout = currentBoutIndex === positions.length - 1;
+  const isRepresentative = currentBoutIndex >= positions.length;
 
-  const redWins = boutResults.filter(r => r.winner === 'red').length;
-  const whiteWins = boutResults.filter(r => r.winner === 'white').length;
+  // 現在の合計
+  const totals = calculateMatchTotals(finishedBouts);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-2xl mx-auto pb-8">
@@ -124,29 +148,40 @@ export function MatchRecord() {
         <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
           {currentPosition}
         </h2>
-        <p className="text-muted mt-2">団体戦 ({teamSize}人制) / 進行状況: {currentBoutIndex + 1} / {teamSize}</p>
+        <p className="text-muted mt-2">
+          {isRepresentative ? '一本勝負' : `団体戦 (${teamSize}人制) / 進行速度: ${currentBoutIndex + 1} / ${teamSize}`}
+        </p>
       </div>
 
       <Card>
-        {/* Top Header - Overall Match Status */}
-        <div className="flex justify-between items-center bg-black/50 p-4 rounded mb-6 font-bold shadow-inner">
-          <div className="flex items-center gap-3">
-            <span className="text-sm bg-red-500/20 text-red-300 px-2 py-1 rounded">計 {redWins} 勝</span>
-            <span style={{ color: 'var(--team-a-red)' }} className="text-lg md:text-xl truncate max-w-[120px]">{teamRedName}</span>
+        {/* Total Scoreboard */}
+        <div className="bg-black/50 p-4 rounded mb-6 shadow-inner border border-white/5">
+          <div className="flex justify-between items-center mb-2 text-xs text-muted uppercase tracking-widest">
+            <span>{teamRedName}</span>
+            <span>Current Status</span>
+            <span>{teamWhiteName}</span>
           </div>
-          <span className="text-muted text-xl mx-2">VS</span>
-          <div className="flex items-center gap-3">
-            <span style={{ color: 'var(--team-b-white)' }} className="text-lg md:text-xl truncate max-w-[120px]">{teamWhiteName}</span>
-            <span className="text-sm bg-gray-500/20 text-gray-300 px-2 py-1 rounded">計 {whiteWins} 勝</span>
+          <div className="flex justify-between items-center font-bold">
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-2xl text-[var(--team-a-red)]">{totals.redWins} <span className="text-xs">勝</span></span>
+              <span className="text-sm opacity-70">({totals.redPoints} 本)</span>
+            </div>
+            
+            <div className="text-xl opacity-30">VS</div>
+
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-2xl text-[var(--team-b-white)]">{totals.whiteWins} <span className="text-xs">勝</span></span>
+              <span className="text-sm opacity-70">({totals.whitePoints} 本)</span>
+            </div>
           </div>
         </div>
 
-        {/* Bout Recording Area */}
+        {/* Current Bout Input */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1 flex flex-col gap-2">
+          <div className="flex-1 flex flex-col gap-3">
             <input 
-              placeholder="赤選手名 (任意)" 
-              className="bg-black/30 text-center text-sm p-2 rounded outline-none border border-transparent focus:border-red-500 transition-colors w-full"
+              placeholder="赤選手名" 
+              className="bg-black/30 text-center p-3 rounded-lg border border-white/10 focus:border-red-500 outline-none transition-all placeholder:opacity-30"
               value={playerRedName}
               onChange={e => setPlayerRedName(e.target.value)}
             />
@@ -159,13 +194,12 @@ export function MatchRecord() {
             />
           </div>
           
-          <div className="hidden sm:block w-[1px] bg-[var(--border-light)] self-stretch mx-1" />
-          <div className="sm:hidden h-[1px] bg-[var(--border-light)] self-stretch my-2" />
+          <div className="hidden sm:block w-[1px] bg-white/5 self-stretch mx-2" />
           
-          <div className="flex-1 flex flex-col gap-2">
+          <div className="flex-1 flex flex-col gap-3">
             <input 
-              placeholder="白選手名 (任意)" 
-              className="bg-black/30 text-center text-sm p-2 rounded outline-none border border-transparent focus:border-gray-300 transition-colors w-full"
+              placeholder="白選手名" 
+              className="bg-black/30 text-center p-3 rounded-lg border border-white/10 focus:border-gray-400 outline-none transition-all placeholder:opacity-30"
               value={playerWhiteName}
               onChange={e => setPlayerWhiteName(e.target.value)}
             />
@@ -180,15 +214,51 @@ export function MatchRecord() {
         </div>
 
         <div className="flex flex-col gap-3 mt-6">
-          <Button size="lg" className="w-full sm:w-auto self-center px-12" variant="primary" onClick={handleNextBout} disabled={isSaving}>
-            {isSaving ? '保存中...' : (isLastBout ? '試合結果を確定する' : 'この対戦を確定して次へ')}
+          <Button 
+            size="lg" 
+            className="w-full font-bold py-4 text-lg shadow-lg" 
+            variant="primary" 
+            onClick={handleNextBout} 
+            disabled={isSaving}
+          >
+            {isSaving ? '保存中...' : (isLastNormalBout ? '試合結果を確定する' : (isRepresentative ? '代表者戦を確定させる' : '次の対戦へ進む'))}
           </Button>
           
-          <Button size="sm" variant="ghost" className="text-muted mx-auto">
-            代表者戦を追加する
-          </Button>
+          {!isRepresentative && (
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="text-muted hover:text-white"
+              onClick={() => {
+                setCurrentBoutIndex(positions.length); // 代表者戦へジャンプ
+                addToast('代表者戦モードに切り替えました', 'info');
+              }}
+            >
+              代表者戦を行う
+            </Button>
+          )}
         </div>
       </Card>
+
+      {/* History of this match */}
+      <div className="mt-4 flex flex-col gap-2">
+        <h3 className="text-sm font-bold opacity-50 px-2">対戦履歴</h3>
+        {finishedBouts.map((bout, idx) => {
+          const p = calculateBoutPoints(bout.redScores, bout.whiteScores);
+          return (
+            <div key={idx} className="flex justify-between items-center text-xs bg-white/5 p-2 rounded border border-white/5">
+              <span className="w-16 opacity-50">{positions[idx] || '代表'}</span>
+              <div className="flex gap-1">
+                {bout.redScores.map((s, i) => <span key={i} className="text-red-400">{s}</span>)}
+              </div>
+              <span className="font-bold">{p.red} - {p.white}</span>
+              <div className="flex gap-1">
+                {bout.whiteScores.map((s, i) => <span key={i} className="text-gray-300">{s}</span>)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
