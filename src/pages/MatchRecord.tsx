@@ -35,6 +35,12 @@ export function MatchRecord() {
   // Track ALL finished bouts to calculate totals
   const [finishedBouts, setFinishedBouts] = useState<{redScores: Score[], whiteScores: Score[]}[]>([]);
 
+  // 判定基準となる変数群を先に定義
+  const isIndividual = matchData?.match_type === 'individual' || (!matchData && teamSize === 1);
+  const currentPosition = positions[currentBoutIndex] || (isIndividual ? '延長戦' : '代表者戦');
+  const isLastNormalBout = currentBoutIndex === positions.length - 1;
+  const isRepresentative = currentBoutIndex >= positions.length;
+
   useEffect(() => {
     if (fallbackMode || !id) return;
     const fetchMatchInfo = async () => {
@@ -91,7 +97,6 @@ export function MatchRecord() {
 
   const handleNextBout = async () => {
     const winner = determineBoutWinner(redScores, whiteScores);
-    const isRepresentative = currentBoutIndex >= positions.length;
     
     setIsSaving(true);
     try {
@@ -120,10 +125,13 @@ export function MatchRecord() {
         setWhiteScores([]);
         setPlayerRedName('');
         setPlayerWhiteName('');
-        addToast(`${positions[currentBoutIndex + 1]}戦へ進みます`, 'info');
+        if (positions[currentBoutIndex + 1]) {
+          addToast(`${positions[currentBoutIndex + 1]}戦へ進みます`, 'info');
+        }
       } else {
         if (totals.winner === 'draw' && !isRepresentative) {
-          addToast('引き分けのため代表者戦を行います', 'info');
+          const modeLabel = isIndividual ? '延長戦' : '代表者戦';
+          addToast(`引き分けのため${modeLabel}を行います`, 'info');
           setCurrentBoutIndex(prev => prev + 1);
           setRedScores([]);
           setWhiteScores([]);
@@ -146,16 +154,10 @@ export function MatchRecord() {
     }
   };
 
-  const currentPosition = positions[currentBoutIndex] || '代表者戦';
-  const isLastNormalBout = currentBoutIndex === positions.length - 1;
-  const isRepresentative = currentBoutIndex >= positions.length;
-
   // 現在進行中のものも含めた合計スコア
   const currentBout = { redScores, whiteScores };
   const allBoutsForTotals = [...finishedBouts, currentBout];
   const totals = calculateMatchTotals(allBoutsForTotals);
-
-  const isIndividual = matchData?.match_type === 'individual' || (!matchData && teamSize === 1);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-2xl mx-auto pb-8">
@@ -238,7 +240,13 @@ export function MatchRecord() {
             onClick={handleNextBout} 
             disabled={isSaving}
           >
-            {isSaving ? '保存中...' : (isLastNormalBout ? '試合結果を確定する' : (isRepresentative ? '代表者戦を確定させる' : '次の対戦へ進む'))}
+            {isSaving 
+              ? '保存中...' 
+              : (isLastNormalBout 
+                  ? '試合結果を確定する' 
+                  : (isRepresentative 
+                      ? (isIndividual ? '延長戦を確定させる' : '代表者戦を確定させる') 
+                      : '次の対戦へ進む'))}
           </Button>
           
           {!isRepresentative && !isIndividual && (
