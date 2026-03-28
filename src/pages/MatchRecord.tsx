@@ -167,7 +167,11 @@ export function MatchRecord() {
           {currentPosition}
         </h2>
         <p className="text-muted mt-2">
-          {isRepresentative ? '一本勝負' : `団体戦 (${teamSize}人制) / 進行速度: ${currentBoutIndex + 1} / ${teamSize}`}
+          {isRepresentative 
+            ? '一本勝負' 
+            : matchData?.match_type === 'individual' 
+              ? '個人戦' 
+              : `団体戦 (${teamSize}人制) / 進行状況: ${currentBoutIndex + 1} / ${teamSize}`}
         </p>
       </div>
 

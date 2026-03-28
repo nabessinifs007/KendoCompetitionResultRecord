@@ -12,7 +12,7 @@ function numToKanji(num: number): string {
 
 // チーム人数に応じたポジション名を取得する関数
 export function getPositionNames(teamSize: number): string[] {
-  if (teamSize === 1) return ['一本立ち（個人戦）'];
+  if (teamSize === 1) return ['個人戦'];
   if (teamSize === 2) return ['先鋒', '大将'];
 
   const names: string[] = [];

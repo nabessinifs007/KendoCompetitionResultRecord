@@ -17,7 +17,6 @@ export function MatchSetup() {
   const [teamRed, setTeamRed] = useState('');
   const [teamWhite, setTeamWhite] = useState('');
   
-  // 選手名管理用のState
   const [playerRedNames, setPlayerRedNames] = useState<string[]>(Array(5).fill(''));
   const [playerWhiteNames, setPlayerWhiteNames] = useState<string[]>(Array(5).fill(''));
   const [showPlayerInputs, setShowPlayerInputs] = useState(false);
@@ -91,18 +90,27 @@ export function MatchSetup() {
   const PRESET_TEAM_SIZES = [3, 5, 7, 8, 9, 10, 11, 14, 15];
 
   const handleStartMatch = async () => {
-    if (!teamRed || !teamWhite) return addToast('チーム名を入力してください', 'error');
+    const label = matchType === 'team' ? 'チーム名' : '選手名';
+    if (!teamRed || !teamWhite) return addToast(`${label}を入力してください`, 'error');
     
     setIsLoading(true);
     try {
+      // 個人戦の場合は teamRed/teamWhite をそのまま playerNames[0] に反映させる
+      const finalRedNames = [...playerRedNames];
+      const finalWhiteNames = [...playerWhiteNames];
+      if (matchType === 'individual') {
+        finalRedNames[0] = teamRed;
+        finalWhiteNames[0] = teamWhite;
+      }
+
       const match = await createMatch({
         court_id: selectedCourtId || null,
         match_type: matchType,
         team_size: matchType === 'team' ? teamSize : 1,
         team_red_name: teamRed,
         team_white_name: teamWhite,
-        player_red_names: playerRedNames,
-        player_white_names: playerWhiteNames,
+        player_red_names: finalRedNames,
+        player_white_names: finalWhiteNames,
         status: 'in_progress',
         winner: null,
       });
@@ -126,7 +134,6 @@ export function MatchSetup() {
       <h2 className="text-2xl text-center font-bold">試合設定</h2>
 
       <Card className="flex flex-col gap-6">
-        {/* 試合場選択 */}
         <div className="bg-black/20 p-4 rounded border border-white/5">
           <label className="text-sm text-muted mb-2 block">試合場（Court）選択</label>
           {!isAddingCourt ? (
@@ -155,7 +162,6 @@ export function MatchSetup() {
           )}
         </div>
 
-        {/* 形式選択 */}
         <div>
           <label className="text-sm text-muted mb-2 block">試合形式</label>
           <div className="flex gap-2">
@@ -176,7 +182,6 @@ export function MatchSetup() {
           </div>
         </div>
 
-        {/* 人数設定 */}
         {matchType === 'team' && (
           <div className="animate-fade-in">
             <label className="text-sm text-muted mb-3 block">団体戦の人数設定</label>
@@ -196,33 +201,34 @@ export function MatchSetup() {
           </div>
         )}
 
-        {/* チーム名・選手名 */}
         <div className="flex flex-col gap-4 mt-2">
           <div className="grid grid-cols-2 gap-3">
             <Input 
-              label="赤 チーム名" 
-              placeholder="例: 赤チーム" 
+              label={matchType === 'team' ? "赤 チーム名" : "赤 選手名"} 
+              placeholder={matchType === 'team' ? "例: 赤チーム" : "例: 剣道 太郎"} 
               value={teamRed}
               onChange={e => setTeamRed(e.target.value)}
             />
             <Input 
-              label="白 チーム名" 
-              placeholder="例: 白チーム" 
+              label={matchType === 'team' ? "白 チーム名" : "白 選手名"}
+              placeholder={matchType === 'team' ? "例: 白チーム" : "例: 剣道 花子"} 
               value={teamWhite}
               onChange={e => setTeamWhite(e.target.value)}
             />
           </div>
 
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-muted"
-            onClick={() => setShowPlayerInputs(!showPlayerInputs)}
-          >
-            {showPlayerInputs ? '▲ 選手名入力を閉じる' : '▼ 選手名を入力する (任意)'}
-          </Button>
+          {matchType === 'team' && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-muted"
+              onClick={() => setShowPlayerInputs(!showPlayerInputs)}
+            >
+              {showPlayerInputs ? '▲ 選手名入力を閉じる' : '▼ 選手名を入力する (任意)'}
+            </Button>
+          )}
 
-          {showPlayerInputs && (
+          {matchType === 'team' && showPlayerInputs && (
             <div className="flex flex-col gap-4 p-4 bg-black/20 rounded-lg border border-white/5 animate-fade-in">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
