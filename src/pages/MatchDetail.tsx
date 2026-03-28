@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { getMatch, getBoutsByMatchId } from '../lib/api';
 import type { Match, Bout, Score } from '../lib/types';
-import { calculateMatchTotals } from '../lib/kendoLogic';
+import { getPositionNames, calculateMatchTotals } from '../lib/kendoLogic';
 import { useToast } from '../components/ui/ToastContext';
 
 export function MatchDetail() {
@@ -94,40 +94,52 @@ export function MatchDetail() {
         </div>
 
         {/* 試合データ行 */}
-        <div className="divide-y divide-white/5">
-          {bouts.map((bout, idx) => {
-            return (
-              <div key={bout.id} className="grid grid-cols-[80px_1fr_120px_1fr_80px] items-center p-3 sm:p-4 hover:bg-white/5 transition-colors">
-                <div className="text-xs text-center border-r border-white/5 font-mono">
-                  {bout.is_representative ? '代表戦' : (match.match_type === 'individual' ? '延長戦' : (['先鋒','次鋒','中堅','副将','大将'][idx] || '対戦'))}
-                </div>
-                
-                <div className="text-center px-2">
-                  <div className="text-sm font-bold truncate">{bout.player_red_name}</div>
-                </div>
+        <div className="divide-y divide-white/5 overflow-x-auto">
+          <div className="min-w-[600px]">
+            {bouts.map((bout, idx) => {
+              const positionLabel = bout.is_representative 
+                ? '代表戦' 
+                : (match.match_type === 'individual' 
+                    ? (idx === 0 ? '本戦' : `延長${idx}`) 
+                    : (getPositionNames(match.team_size)[idx] || '対戦'));
 
-                <div className="flex justify-center gap-1.5 px-2">
-                  <div className="flex justify-end gap-1 flex-1">
-                    {bout.score_red.map((s, i) => <ScoreBadge key={i} score={s} />)}
+              return (
+                <div key={bout.id} className="grid grid-cols-[100px_1fr_140px_1fr_80px] items-center p-3 sm:p-4 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0">
+                  <div className="text-xs text-center border-r border-white/5 font-bold text-muted">
+                    {positionLabel}
                   </div>
-                  <div className="w-[1px] bg-white/20 mx-1 h-6" />
-                  <div className="flex justify-start gap-1 flex-1">
-                    {bout.score_white.map((s, i) => <ScoreBadge key={i} score={s} />)}
+                  
+                  <div className="text-center px-4">
+                    <div className="text-sm font-bold truncate" title={bout.player_red_name}>
+                      {bout.player_red_name}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center items-center gap-2 px-2">
+                    <div className="flex justify-end gap-1 flex-1">
+                      {bout.score_red.map((s, i) => <ScoreBadge key={i} score={s} />)}
+                    </div>
+                    <div className="w-[1px] bg-white/20 h-6 shrink-0" />
+                    <div className="flex justify-start gap-1 flex-1">
+                      {bout.score_white.map((s, i) => <ScoreBadge key={i} score={s} />)}
+                    </div>
+                  </div>
+
+                  <div className="text-center px-4">
+                    <div className="text-sm font-bold truncate" title={bout.player_white_name}>
+                      {bout.player_white_name}
+                    </div>
+                  </div>
+
+                  <div className="text-center font-black">
+                    {bout.winner === 'red' ? <span className="text-red-500 bg-red-500/10 px-2 py-1 rounded border border-red-500/20 text-xs">勝</span> : 
+                     bout.winner === 'white' ? <span className="text-white bg-white/10 px-2 py-1 rounded border border-white/20 text-xs text-[#f8fafc]">勝</span> : 
+                     <span className="text-muted text-xs">分</span>}
                   </div>
                 </div>
-
-                <div className="text-center px-2">
-                  <div className="text-sm font-bold truncate">{bout.player_white_name}</div>
-                </div>
-
-                <div className="text-center font-bold text-sm">
-                  {bout.winner === 'red' ? <span className="text-red-400">勝</span> : 
-                   bout.winner === 'white' ? <span className="text-gray-300">勝</span> : 
-                   <span className="text-muted">分</span>}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* 合計表示 */}
