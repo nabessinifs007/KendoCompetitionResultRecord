@@ -62,7 +62,6 @@ export function MatchRecord() {
   }, [matchData, currentBoutIndex]);
 
   const handleAddScore = (team: 'red' | 'white', score: Score) => {
-    // 仮にスコアを追加した後の本数を計算してみる
     const currentPoints = calculateBoutPoints(redScores, whiteScores);
     if (score !== 'F' && (currentPoints.red >= 2 || currentPoints.white >= 2)) {
       addToast('すでに勝負が決まっています', 'info');
@@ -75,7 +74,6 @@ export function MatchRecord() {
       setWhiteScores(prev => [...prev, score]);
     }
 
-    // 不戦勝(F)の場合：自動的に2本（不・不）にする処理
     if (score === 'F') {
       if (team === 'red') setRedScores(['F', 'F']);
       else setWhiteScores(['F', 'F']);
@@ -113,12 +111,10 @@ export function MatchRecord() {
       const newFinishedBouts = [...finishedBouts, { redScores, whiteScores }];
       setFinishedBouts(newFinishedBouts);
 
-      // 次の対戦の判定
       const totals = calculateMatchTotals(newFinishedBouts);
       const isTeamMatchFinished = currentBoutIndex + 1 >= positions.length;
 
       if (!isTeamMatchFinished) {
-        // 次のポジションへ
         setCurrentBoutIndex(prev => prev + 1);
         setRedScores([]);
         setWhiteScores([]);
@@ -126,9 +122,7 @@ export function MatchRecord() {
         setPlayerWhiteName('');
         addToast(`${positions[currentBoutIndex + 1]}戦へ進みます`, 'info');
       } else {
-        // 全ポジション終了
         if (totals.winner === 'draw' && !isRepresentative) {
-          // 代表者戦へ
           addToast('引き分けのため代表者戦を行います', 'info');
           setCurrentBoutIndex(prev => prev + 1);
           setRedScores([]);
@@ -136,7 +130,6 @@ export function MatchRecord() {
           setPlayerRedName('');
           setPlayerWhiteName('');
         } else {
-          // 完全終了
           if (!fallbackMode && id) {
             await updateMatchStatus(id, 'completed', totals.winner);
           }
@@ -157,8 +150,12 @@ export function MatchRecord() {
   const isLastNormalBout = currentBoutIndex === positions.length - 1;
   const isRepresentative = currentBoutIndex >= positions.length;
 
-  // 現在の合計
-  const totals = calculateMatchTotals(finishedBouts);
+  // 現在進行中のものも含めた合計スコア
+  const currentBout = { redScores, whiteScores };
+  const allBoutsForTotals = [...finishedBouts, currentBout];
+  const totals = calculateMatchTotals(allBoutsForTotals);
+
+  const isIndividual = matchData?.match_type === 'individual' || (!matchData && teamSize === 1);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-2xl mx-auto pb-8">
@@ -169,14 +166,13 @@ export function MatchRecord() {
         <p className="text-muted mt-2">
           {isRepresentative 
             ? '一本勝負' 
-            : matchData?.match_type === 'individual' 
+            : isIndividual 
               ? '個人戦' 
               : `団体戦 (${teamSize}人制) / 進行状況: ${currentBoutIndex + 1} / ${teamSize}`}
         </p>
       </div>
 
       <Card>
-        {/* Total Scoreboard */}
         <div className="bg-black/50 p-4 rounded mb-6 shadow-inner border border-white/5">
           <div className="flex justify-between items-center mb-2 text-xs text-muted uppercase tracking-widest">
             <span>{teamRedName}</span>
@@ -198,7 +194,6 @@ export function MatchRecord() {
           </div>
         </div>
 
-        {/* Current Bout Input */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1 flex flex-col gap-3">
             <input 
@@ -246,13 +241,13 @@ export function MatchRecord() {
             {isSaving ? '保存中...' : (isLastNormalBout ? '試合結果を確定する' : (isRepresentative ? '代表者戦を確定させる' : '次の対戦へ進む'))}
           </Button>
           
-          {!isRepresentative && (
+          {!isRepresentative && !isIndividual && (
             <Button 
               size="sm" 
               variant="ghost" 
               className="text-muted hover:text-white"
               onClick={() => {
-                setCurrentBoutIndex(positions.length); // 代表者戦へジャンプ
+                setCurrentBoutIndex(positions.length);
                 addToast('代表者戦モードに切り替えました', 'info');
               }}
             >
@@ -262,7 +257,6 @@ export function MatchRecord() {
         </div>
       </Card>
 
-      {/* History of this match */}
       <div className="mt-4 flex flex-col gap-2">
         <h3 className="text-sm font-bold opacity-50 px-2">対戦履歴</h3>
         {finishedBouts.map((bout, idx) => {
